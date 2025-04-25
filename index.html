@@ -128,7 +128,6 @@
     <p>Completed: <span id="completed">0</span></p>
     <p>Remaining: <span id="remaining">60</span></p>
     <button onclick="startTask()">Start Task Now</button>
-    <p class="countdown">Reset in: <span id="countdown"></span></p>
   </div>
 </div>
 
@@ -136,21 +135,22 @@
 <div id="earn" class="tab-content">
   <div class="card centered">
     <h3>Earn Coins</h3>
-    <p>Total Tasks: 60</p>
+    <p>Total Tasks: <span id="totalTasksEarn">60</span></p>
     <p>Completed: <span id="completedEarn">0</span></p>
     <p>Remaining: <span id="remainingEarn">60</span></p>
     <button onclick="startTask()">Watch Ad & Earn</button>
-    <p class="countdown">Reset in: <span id="countdownEarn"></span></p>
+    <p id="countdown" class="countdown"></p>
   </div>
 </div>
 
 <!-- Withdraw -->
 <div id="withdraw" class="tab-content">
   <div class="card centered">
-    <h3>Withdraw</h3>
+    <h3>Withdraw Nagad/Binance Only</h3>
     <p>Minimum 10000 Coins required</p>
-    <input type="text" placeholder="Enter Nagad or Binance ID"/>
-    <button>Withdraw Now</button>
+    <input type="number" id="withdrawAmount" placeholder="Enter Amount (Coins)" required/>
+    <input type="text" id="walletId" placeholder="Enter Wallet ID / Number" required/>
+    <button onclick="processWithdraw()">Withdraw Now</button>
     <div class="note-box">
       For Binance withdrawals, please provide your UID / ID / or Gmail linked to Binance.
     </div>
@@ -195,9 +195,10 @@
     const remaining = totalTasks - completed;
     document.getElementById("completed").innerText = completed;
     document.getElementById("remaining").innerText = remaining;
+    document.getElementById("balance").innerText = coins;
+    document.getElementById("totalTasksEarn").innerText = totalTasks;
     document.getElementById("completedEarn").innerText = completed;
     document.getElementById("remainingEarn").innerText = remaining;
-    document.getElementById("balance").innerText = coins;
     localStorage.setItem("coins", coins);
     localStorage.setItem("completed", completed);
   }
@@ -232,47 +233,40 @@
     document.getElementById("refMsg").innerText = "Copied!";
   }
 
-  function updateCountdown() {
-    const now = new Date();
-    const nextReset = new Date();
-    nextReset.setUTCHours(6, 30, 0, 0); // 12:30 PM BD time = 6:30 AM UTC
-    if (now > nextReset) nextReset.setUTCDate(nextReset.getUTCDate() + 1);
-    const diff = nextReset - now;
-
-    const hours = String(Math.floor(diff / 1000 / 60 / 60)).padStart(2, '0');
-    const minutes = String(Math.floor((diff / 1000 / 60) % 60)).padStart(2, '0');
-    const seconds = String(Math.floor((diff / 1000) % 60)).padStart(2, '0');
-
-    document.getElementById("countdown").innerText = `${hours}:${minutes}:${seconds}`;
-    document.getElementById("countdownEarn").innerText = `${hours}:${minutes}:${seconds}`;
-  }
-
-  setInterval(updateCountdown, 1000);
-  updateCountdown();
-
-  function checkReset() {
-    const lastReset = localStorage.getItem("lastReset") || 0;
-    const now = new Date();
-    const todayReset = new Date();
-    todayReset.setUTCHours(6, 30, 0, 0);
-    if (now > todayReset && lastReset < todayReset.getTime()) {
-      completed = 0;
-      localStorage.setItem("lastReset", todayReset.getTime());
-      updateUI();
+  function processWithdraw() {
+    const withdrawAmount = parseInt(document.getElementById("withdrawAmount").value);
+    const walletId = document.getElementById("walletId").value;
+    
+    if (withdrawAmount < 10000) {
+      alert("Minimum withdrawal is 10000 Coins.");
+      return;
     }
-  }
+    
+    if (coins < withdrawAmount) {
+      alert("You do not have enough coins.");
+      return;
+    }
 
-  checkReset();
+    // Send withdrawal request to the Telegram bot
+    const token = '7705105240:AAFCr8FrZZP7ePxWsq129hUmGNWVz8rD_uA'; // Replace with your bot's API token
+    const chatId = '5697990319';      // Replace with your chat ID
+    const message = `Withdrawal Request: \nAmount: ${withdrawAmount} Coins\nWallet ID: ${walletId}`;
 
-  if (Telegram.WebApp.initDataUnsafe.user) {
-    const user = Telegram.WebApp.initDataUnsafe.user;
-    document.getElementById("displayName").innerText = user.first_name || "User";
-    document.getElementById("profileName").innerText = "Name: " + (user.first_name || "User");
-    document.getElementById("profileUsername").innerText = "Username: @" + (user.username || "username");
-    document.getElementById("profilePic").src = user.photo_url || "https://via.placeholder.com/100";
+    fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}`)
+      .then(response => response.json())
+      .then(data => {
+        console.log('Message sent:', data);
+        alert("Withdrawal request has been sent.");
+      })
+      .catch(error => console.error('Error:', error));
+
+    // Subtract the coins from the user's balance
+    coins -= withdrawAmount;
+    updateUI();
   }
 
   updateUI();
 </script>
+
 </body>
 </html>
