@@ -128,6 +128,7 @@
     <p>Completed: <span id="completed">0</span></p>
     <p>Remaining: <span id="remaining">60</span></p>
     <button onclick="startTask()">Start Task Now</button>
+    <p class="countdown">Reset in: <span id="countdown"></span></p>
   </div>
 </div>
 
@@ -135,7 +136,11 @@
 <div id="earn" class="tab-content">
   <div class="card centered">
     <h3>Earn Coins</h3>
+    <p>Total Tasks: 60</p>
+    <p>Completed: <span id="completedEarn">0</span></p>
+    <p>Remaining: <span id="remainingEarn">60</span></p>
     <button onclick="startTask()">Watch Ad & Earn</button>
+    <p class="countdown">Reset in: <span id="countdownEarn"></span></p>
   </div>
 </div>
 
@@ -184,12 +189,14 @@
 <script>
   let coins = parseInt(localStorage.getItem("coins")) || 0;
   let completed = parseInt(localStorage.getItem("completed")) || 0;
-  let totalTasks = 60;
-  let remaining = totalTasks - completed;
+  const totalTasks = 60;
 
   function updateUI() {
+    const remaining = totalTasks - completed;
     document.getElementById("completed").innerText = completed;
     document.getElementById("remaining").innerText = remaining;
+    document.getElementById("completedEarn").innerText = completed;
+    document.getElementById("remainingEarn").innerText = remaining;
     document.getElementById("balance").innerText = coins;
     localStorage.setItem("coins", coins);
     localStorage.setItem("completed", completed);
@@ -201,10 +208,10 @@
   }
 
   function startTask() {
+    if (completed >= totalTasks) return;
     show_8969460(); // Monetag ad
     completed++;
     coins += 10;
-    remaining = totalTasks - completed;
     updateUI();
     showModal();
   }
@@ -225,6 +232,38 @@
     document.getElementById("refMsg").innerText = "Copied!";
   }
 
+  function updateCountdown() {
+    const now = new Date();
+    const nextReset = new Date();
+    nextReset.setUTCHours(6, 30, 0, 0); // 12:30 PM BD time = 6:30 AM UTC
+    if (now > nextReset) nextReset.setUTCDate(nextReset.getUTCDate() + 1);
+    const diff = nextReset - now;
+
+    const hours = String(Math.floor(diff / 1000 / 60 / 60)).padStart(2, '0');
+    const minutes = String(Math.floor((diff / 1000 / 60) % 60)).padStart(2, '0');
+    const seconds = String(Math.floor((diff / 1000) % 60)).padStart(2, '0');
+
+    document.getElementById("countdown").innerText = `${hours}:${minutes}:${seconds}`;
+    document.getElementById("countdownEarn").innerText = `${hours}:${minutes}:${seconds}`;
+  }
+
+  setInterval(updateCountdown, 1000);
+  updateCountdown();
+
+  function checkReset() {
+    const lastReset = localStorage.getItem("lastReset") || 0;
+    const now = new Date();
+    const todayReset = new Date();
+    todayReset.setUTCHours(6, 30, 0, 0);
+    if (now > todayReset && lastReset < todayReset.getTime()) {
+      completed = 0;
+      localStorage.setItem("lastReset", todayReset.getTime());
+      updateUI();
+    }
+  }
+
+  checkReset();
+
   if (Telegram.WebApp.initDataUnsafe.user) {
     const user = Telegram.WebApp.initDataUnsafe.user;
     document.getElementById("displayName").innerText = user.first_name || "User";
@@ -234,22 +273,6 @@
   }
 
   updateUI();
-
-  // Referral click tracking - SEND message to referrer
-  const urlParams = new URLSearchParams(window.location.search);
-  const ref = urlParams.get("ref");
-
-  if (ref) {
-    const token = '7705105240:AAFCr8FrZZP7ePxWsq129hUmGNWVz8rD_uA'; // Replace this
-    const chatId = '5697990319';      // Replace this
-    const msg = `Someone clicked your referral link!\nReferred by: @${ref}`;
-
-    fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(msg)}`)
-      .then(res => res.json())
-      .then(data => console.log("Referral message sent:", data))
-      .catch(err => console.error("Error:", err));
-  }
 </script>
-
 </body>
 </html>
